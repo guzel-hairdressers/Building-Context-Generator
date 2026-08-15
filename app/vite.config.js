@@ -27,9 +27,15 @@ const fetchPlugin = () => ({
             const pType = parcel_type === 'voronoi' ? 'voronoi' : 'convex_hull';
             const cmd = `"${pythonCmd}" "${scriptPath}" --lat ${lat} --lon ${lon} --name "${safeName}" --road-setback ${rSetback} --building-setback ${bSetback} --parcel-type ${pType}${polyArg}`;
 
-            console.log(`[Vite Fetch API] Executing: ${cmd}`);
+            const cleanEnv = { ...process.env };
+            delete cleanEnv.http_proxy;
+            delete cleanEnv.https_proxy;
+            delete cleanEnv.HTTP_PROXY;
+            delete cleanEnv.HTTPS_PROXY;
+            delete cleanEnv.all_proxy;
+            delete cleanEnv.ALL_PROXY;
 
-            exec(cmd, { cwd: path.resolve(__dirname, '..') }, (error, stdout, stderr) => {
+            exec(cmd, { cwd: path.resolve(__dirname, '..'), env: cleanEnv }, (error, stdout, stderr) => {
               if (error) {
                 console.error('[Vite Fetch API Error]:', stderr || error.message);
                 res.statusCode = 500;

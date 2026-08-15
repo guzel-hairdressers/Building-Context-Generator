@@ -5,6 +5,10 @@ Queries OpenStreetMap Overpass API, extrudes 3D buildings & road ribbons, and is
 """
 
 import os
+# Strip any environment proxies that intercept and block outbound Overpass requests
+for _k in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY']:
+    os.environ.pop(_k, None)
+
 import sys
 import json
 import math
@@ -200,8 +204,10 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     def _query_mirror(server_url):
+        session = requests.Session()
+        session.trust_env = False
         try:
-            resp = requests.post(server_url, data={'data': query}, headers=headers, timeout=(8, 25))
+            resp = session.post(server_url, data={'data': query}, headers=headers, timeout=(8, 25))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
@@ -210,7 +216,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         except Exception as err:
             pass
         try:
-            resp = requests.get(server_url, params={'data': query}, headers=headers, timeout=(8, 25))
+            resp = session.get(server_url, params={'data': query}, headers=headers, timeout=(8, 25))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
