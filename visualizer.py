@@ -562,6 +562,52 @@ controls.dampingFactor = 0.18;
 controls.maxPolarAngle = Math.PI / 2.0; // Allow true flat horizontal view
 controls.target.set(0, DATA.maxHeight * 0.08, 0);
 
+// --- Camera Switch Controls & Persistence (Axonometric vs Perspective) ---
+const btnPersp = document.getElementById('btn-persp');
+const btnOrtho = document.getElementById('btn-ortho');
+
+function saveCurrentViewState() {{
+  try {{
+    if (
+      !isNaN(activeCamera.position.x) &&
+      !isNaN(activeCamera.position.y) &&
+      !isNaN(activeCamera.position.z) &&
+      (Math.abs(activeCamera.position.x) > 0.001 || Math.abs(activeCamera.position.y) > 0.001 || Math.abs(activeCamera.position.z) > 0.001) &&
+      !isNaN(controls.target.x) &&
+      !isNaN(controls.target.y) &&
+      !isNaN(controls.target.z)
+    ) {{
+      const view = {{
+        pos: [activeCamera.position.x, activeCamera.position.y, activeCamera.position.z],
+        target: [controls.target.x, controls.target.y, controls.target.z],
+        zoom: cameraOrtho.zoom,
+        isPersp: activeCamera === cameraPersp,
+      }};
+      localStorage.setItem('context_generator_camera_view', JSON.stringify(view));
+    }}
+  }} catch (e) {{}}
+}}
+
+function setCamera(cameraMode) {{
+  const prevCam = activeCamera;
+  if (cameraMode === 'ortho') {{
+    activeCamera = cameraOrtho;
+    if (btnOrtho) btnOrtho.classList.add('active');
+    if (btnPersp) btnPersp.classList.remove('active');
+  }} else {{
+    activeCamera = cameraPersp;
+    if (btnPersp) btnPersp.classList.add('active');
+    if (btnOrtho) btnOrtho.classList.remove('active');
+  }}
+  activeCamera.position.copy(prevCam.position);
+  controls.object = activeCamera;
+  controls.update();
+  saveCurrentViewState();
+}}
+
+if (btnPersp) btnPersp.addEventListener('click', () => setCamera('persp'));
+if (btnOrtho) btnOrtho.addEventListener('click', () => setCamera('ortho'));
+
 // --- Camera View State Persistence across site switches ---
 try {{
   const savedState = localStorage.getItem('context_generator_camera_view');
@@ -588,8 +634,9 @@ try {{
       cameraPersp.updateProjectionMatrix();
       controls.target.set(view.target[0], view.target[1], view.target[2]);
       if (view.isPersp) {{
-        activeCamera = cameraPersp;
-        controls.object = cameraPersp;
+        setCamera('persp');
+      }} else {{
+        setCamera('ortho');
       }}
     }} else {{
       localStorage.removeItem('context_generator_camera_view');
@@ -600,28 +647,7 @@ try {{
 }}
 
 controls.update();
-
-controls.addEventListener('change', () => {{
-  try {{
-    if (
-      !isNaN(activeCamera.position.x) &&
-      !isNaN(activeCamera.position.y) &&
-      !isNaN(activeCamera.position.z) &&
-      (Math.abs(activeCamera.position.x) > 0.001 || Math.abs(activeCamera.position.y) > 0.001 || Math.abs(activeCamera.position.z) > 0.001) &&
-      !isNaN(controls.target.x) &&
-      !isNaN(controls.target.y) &&
-      !isNaN(controls.target.z)
-    ) {{
-      const view = {{
-        pos: [activeCamera.position.x, activeCamera.position.y, activeCamera.position.z],
-        target: [controls.target.x, controls.target.y, controls.target.z],
-        zoom: cameraOrtho.zoom,
-        isPersp: activeCamera === cameraPersp,
-      }};
-      localStorage.setItem('context_generator_camera_view', JSON.stringify(view));
-    }}
-  }} catch (e) {{}}
-}});
+controls.addEventListener('change', saveCurrentViewState);
 
 // --- Sun Direction Vector for Normal Self-Shading & Sun-Facing Filtering ---
 const sunVector = new THREE.Vector3(130, 220, 90).normalize();
@@ -1061,31 +1087,8 @@ gizmoCanvas.addEventListener('click', (e) => {{
       snapToView(node.dir[0], node.dir[1], node.dir[2]);
       break;
     }}
-  }}
-}});
-
-// --- Camera Switch Controls (Axonometric vs Perspective) ---
-const btnPersp = document.getElementById('btn-persp');
-const btnOrtho = document.getElementById('btn-ortho');
-
-function setCamera(cameraMode) {{
-  const prevCam = activeCamera;
-  if (cameraMode === 'ortho') {{
-    activeCamera = cameraOrtho;
-    btnOrtho.classList.add('active');
-    btnPersp.classList.remove('active');
-  }} else {{
-    activeCamera = cameraPersp;
-    btnPersp.classList.add('active');
-    btnOrtho.classList.remove('active');
-  }}
-  activeCamera.position.copy(prevCam.position);
-  controls.object = activeCamera;
-  controls.update();
-}}
-
-btnPersp.addEventListener('click', () => setCamera('persp'));
-btnOrtho.addEventListener('click', () => setCamera('ortho'));
+  }
+});
 
 // --- Clean Architectural Building Tooltips ---
 const raycaster = new THREE.Raycaster();
