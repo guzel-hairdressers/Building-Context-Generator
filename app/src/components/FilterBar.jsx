@@ -132,7 +132,7 @@ export const FilterBar = () => {
           onClick={resetFilters}
           title="Reset All Filters"
         >
-          Reset
+          Reset Filters
         </button>
       </div>
 

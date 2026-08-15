@@ -1,5 +1,35 @@
 [
   {
+    "site_id": "custom_xl_1786766955",
+    "is_custom": true,
+    "city_code": "custom",
+    "city_name": "Paris",
+    "lat": 48.852866,
+    "lon": 2.349855,
+    "area_tier": "XL",
+    "site_area_m2": 11164.24,
+    "avg_height_m": 15.0,
+    "max_height_m": 15.0,
+    "building_count": 9,
+    "far": 0.11,
+    "render_html": "sites/custom_xl_1786766955.html"
+  },
+  {
+    "site_id": "custom_xl_1786766869",
+    "is_custom": true,
+    "city_code": "custom",
+    "city_name": "Paris",
+    "lat": 48.852871,
+    "lon": 2.349872,
+    "area_tier": "XL",
+    "site_area_m2": 10873.48,
+    "avg_height_m": 15.0,
+    "max_height_m": 15.0,
+    "building_count": 11,
+    "far": 0.16,
+    "render_html": "sites/custom_xl_1786766869.html"
+  },
+  {
     "site_id": "custom_xl_1786766457",
     "is_custom": true,
     "city_code": "custom",

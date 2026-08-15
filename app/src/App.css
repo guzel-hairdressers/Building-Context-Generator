@@ -468,7 +468,7 @@ body, html, #root, .app-root {
 }
 
 .btn-action-stacked {
-  min-width: 96px;
+  min-width: 104px;
   height: 25px;
   padding: 0 10px;
   font-size: 11px;
