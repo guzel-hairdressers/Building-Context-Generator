@@ -83,16 +83,12 @@ const fetchPlugin = () => ({
               stderrBuf += chunk.toString();
             });
 
-            pyProc.on('close', (code) => {
+            pyProc.on('close', (code, signal) => {
               if (code !== 0 && !resultSent) {
-                const errMsg = stderrBuf.trim().split('\n').pop() || `Process exited with code ${code}`;
+                const errMsg = stderrBuf.trim().split('\n').pop() || (signal ? `Process terminated with signal ${signal}` : `Process exited with code ${code}`);
                 res.write(`data: ${JSON.stringify({ type: 'error', error: errMsg })}\n\n`);
               }
               res.end();
-            });
-
-            req.on('close', () => {
-              pyProc.kill();
             });
           } catch (err) {
             res.statusCode = 400;
