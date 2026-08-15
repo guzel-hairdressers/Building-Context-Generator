@@ -237,16 +237,25 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
 
     osm_data = None
     print(f"[CustomFetcher] Querying {len(OVERPASS_SERVERS)} Overpass mirrors in parallel...")
-    with ThreadPoolExecutor(max_workers=len(OVERPASS_SERVERS)) as executor:
-        futures = [executor.submit(_query_mirror, url) for url in OVERPASS_SERVERS]
-        for future in as_completed(futures):
-            try:
-                res_data = future.result()
-                if res_data is not None:
-                    osm_data = res_data
-                    break
-            except Exception:
-                pass
+    executor = ThreadPoolExecutor(max_workers=len(OVERPASS_SERVERS))
+    futures = [executor.submit(_query_mirror, url) for url in OVERPASS_SERVERS]
+    for future in as_completed(futures):
+        try:
+            res_data = future.result()
+            if res_data is not None:
+                osm_data = res_data
+                try:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                except Exception:
+                    pass
+                break
+        except Exception:
+            pass
+
+    try:
+        executor.shutdown(wait=False, cancel_futures=True)
+    except Exception:
+        pass
 
     if not osm_data:
         print("[CustomFetcher] Error: All Overpass API servers timed out or failed.", file=sys.stderr)

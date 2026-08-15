@@ -1087,8 +1087,8 @@ gizmoCanvas.addEventListener('click', (e) => {{
       snapToView(node.dir[0], node.dir[1], node.dir[2]);
       break;
     }}
-  }
-});
+  }}
+}});
 
 // --- Clean Architectural Building Tooltips ---
 const raycaster = new THREE.Raycaster();
