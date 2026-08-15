@@ -173,20 +173,17 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         custom_name = "Custom Location"
 
     OVERPASS_SERVERS = [
-        "https://overpass.private.coffee/api/interpreter",
         "https://overpass.freemap.sk/api/interpreter",
-        "https://lz4.overpass-api.de/api/interpreter",
-        "https://z.overpass-api.de/api/interpreter",
-        "https://overpass-api.de/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
         "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
         "https://overpass.osm.ch/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
     ]
 
     query = f"""
-    [out:json][timeout:20];
+    [out:json][timeout:25];
     (
       way["building"](around:140, {lat}, {lon});
-      relation["building"](around:140, {lat}, {lon});
       way["highway"](around:140, {lat}, {lon});
     );
     out body;
@@ -195,7 +192,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
     """
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (BuildingContextGenerator/1.0)',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
     }
@@ -204,20 +201,22 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
 
     def _query_mirror(server_url):
         try:
-            resp = requests.post(server_url, data={'data': query}, headers=headers, timeout=(6, 20))
+            resp = requests.post(server_url, data={'data': query}, headers=headers, timeout=(8, 25))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
+                    print(f"[CustomFetcher] Mirror {server_url} succeeded ({len(data['elements'])} elements)", file=sys.stderr)
                     return data
-        except Exception:
+        except Exception as err:
             pass
         try:
-            resp = requests.get(server_url, params={'data': query}, headers=headers, timeout=(6, 20))
+            resp = requests.get(server_url, params={'data': query}, headers=headers, timeout=(8, 25))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
+                    print(f"[CustomFetcher] Mirror {server_url} (GET) succeeded ({len(data['elements'])} elements)", file=sys.stderr)
                     return data
-        except Exception:
+        except Exception as err:
             pass
         return None
 
