@@ -165,9 +165,6 @@ export const useStore = create((set, get) => ({
     const currentSite = filteredSites[activeSiteIndex];
 
     const filtered = allSites.filter((site) => {
-      // ALWAYS include user-generated custom sites so newly created locations are never hidden!
-      if (site.is_custom) return true;
-
       // City Filter
       if (filters.city !== 'ALL' && site.city_code !== filters.city) return false;
 
@@ -182,8 +179,8 @@ export const useStore = create((set, get) => ({
     });
 
     let newIndex = 0;
-    // If switching to ANY tier, preserve the active 3D model currently on screen
-    if (filters.activeTier === 'ANY' && currentSite) {
+    // Preserve active site on screen if it still satisfies current filters
+    if (currentSite) {
       const idxInFiltered = filtered.findIndex((s) => s.site_id === currentSite.site_id);
       if (idxInFiltered !== -1) {
         newIndex = idxInFiltered;
