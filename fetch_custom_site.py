@@ -163,11 +163,16 @@ def compute_smart_parcel(site_b_verts, shifted_bldgs, shifted_roads, custom_poly
         return site_b_verts, debug_layers
 
 
+def emit_progress(stage: str, message: str):
+    print(f"PROGRESS:{json.dumps({'stage': stage, 'message': message})}", flush=True)
+
+
 def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", custom_polygon: list = None, road_setback: float = 2.0, building_setback: float = 3.0, parcel_type: str = "convex_hull"):
     """
     Fetch OpenStreetMap data for a custom (lat, lon) location, generate 3D WebGL scene,
     and save record in custom_sites_dataset.json.
     """
+    emit_progress("fetching_osm", "Querying OpenStreetMap...")
     os.makedirs(SITES_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(CUSTOM_DS_PATH), exist_ok=True)
 
@@ -213,8 +218,10 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
                 if "elements" in data and len(data["elements"]) > 0:
                     print(f"[CustomFetcher] Mirror {server_url} succeeded ({len(data['elements'])} elements)", file=sys.stderr)
                     return data
+            else:
+                print(f"[CustomFetcher] Mirror {server_url} POST HTTP {resp.status_code}: {resp.text[:100]}", file=sys.stderr)
         except Exception as err:
-            pass
+            print(f"[CustomFetcher] Mirror {server_url} POST exception: {type(err).__name__} - {err}", file=sys.stderr)
         try:
             resp = session.get(server_url, params={'data': query}, headers=headers, timeout=(8, 25))
             if resp.status_code == 200:
@@ -222,8 +229,10 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
                 if "elements" in data and len(data["elements"]) > 0:
                     print(f"[CustomFetcher] Mirror {server_url} (GET) succeeded ({len(data['elements'])} elements)", file=sys.stderr)
                     return data
+            else:
+                print(f"[CustomFetcher] Mirror {server_url} (GET) HTTP {resp.status_code}: {resp.text[:100]}", file=sys.stderr)
         except Exception as err:
-            pass
+            print(f"[CustomFetcher] Mirror {server_url} GET exception: {type(err).__name__} - {err}", file=sys.stderr)
         return None
 
     osm_data = None
@@ -243,6 +252,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         print("[CustomFetcher] Error: All Overpass API servers timed out or failed.", file=sys.stderr)
         return None
 
+    emit_progress("processing_geometry", "Processing parcels & road setbacks...")
     parsed_bldgs, parsed_roads = parse_osm_data(osm_data, lat, lon, default_h=18.0)
 
     if not parsed_bldgs:
@@ -324,6 +334,8 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
     # Convert parcel center back to exact lat/lon
     slat, slon = local_meters_to_latlon(scx, scy, lat, lon)
 
+    emit_progress("extruding_3d", "Extruding 3D geometry & context...")
+
     scene_data = {
         'site_id': site_id,
         'city_name': custom_name,
@@ -339,6 +351,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
     html_name = f"{site_id}.html"
     public_out_path = os.path.join(SITES_DIR, html_name)
 
+    emit_progress("saving_scene", "Saving 3D scene & metrics...")
     create_3d_context_visualization(scene_data, public_out_path)
 
     custom_record = {
@@ -395,6 +408,7 @@ if __name__ == "__main__":
 
     res = fetch_custom_site(args.lat, args.lon, args.name, custom_polygon=poly_list, road_setback=args.road_setback, building_setback=args.building_setback, parcel_type=args.parcel_type)
     if res:
-        print(json.dumps(res))
+        print(f"RESULT:{json.dumps(res)}", flush=True)
+        print(json.dumps(res), flush=True)
     else:
         sys.exit(1)

@@ -373,11 +373,6 @@ export const CustomSiteModal = () => {
     }
   };
 
-  const clearStepTimers = () => {
-    stepTimersRef.current.forEach((t) => clearTimeout(t));
-    stepTimersRef.current = [];
-  };
-
   const handleDeleteSelected = () => {
     if (selectedIndex === null) return;
     setDrawnPoints((prev) => prev.filter((_, i) => i !== selectedIndex));
@@ -385,7 +380,6 @@ export const CustomSiteModal = () => {
   };
 
   const handleCloseModal = () => {
-    clearStepTimers();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -395,36 +389,16 @@ export const CustomSiteModal = () => {
     setCustomModalOpen(false);
   };
 
-  // Fetch OpenStreetMap data and generate 3D WebGL context via backend engine
+  // Fetch OpenStreetMap data and generate 3D WebGL context via real-time SSE stream
   const handleFetch = async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    clearStepTimers();
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     setIsFetching(true);
-    setStatusMsg('Fetching OSM...');
-
-    // Progressively update status text across real pipeline stages
-    stepTimersRef.current.push(
-      setTimeout(() => {
-        if (!controller.signal.aborted) setStatusMsg('Processing site & roads...');
-      }, 700)
-    );
-
-    stepTimersRef.current.push(
-      setTimeout(() => {
-        if (!controller.signal.aborted) setStatusMsg('Extruding 3D context...');
-      }, 1400)
-    );
-
-    stepTimersRef.current.push(
-      setTimeout(() => {
-        if (!controller.signal.aborted) setStatusMsg('Saving 3D scene...');
-      }, 2200)
-    );
+    setStatusMsg('Connecting to generator engine...');
 
     try {
       const payload = {
@@ -446,23 +420,53 @@ export const CustomSiteModal = () => {
         body: JSON.stringify(payload),
       });
 
-      clearStepTimers();
-
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server status ${res.status}`);
+        throw new Error(`Server error ${res.status}`);
       }
 
-      const newSiteRecord = await res.json();
-      console.log('Fetched new site record:', newSiteRecord);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let siteResult = null;
 
-      addCustomSite(newSiteRecord);
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.type === 'progress' && data.message) {
+                setStatusMsg(data.message);
+              } else if (data.type === 'complete' && data.site) {
+                siteResult = data.site;
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'Failed to generate site context');
+              }
+            } catch (e) {
+              if (e.message && !e.message.includes('Unexpected end of JSON')) {
+                throw e;
+              }
+            }
+          }
+        }
+      }
+
+      if (!siteResult) {
+        throw new Error('Process ended without site data');
+      }
+
+      addCustomSite(siteResult);
       setIsFetching(false);
       setStatusMsg('');
       abortControllerRef.current = null;
       setCustomModalOpen(false);
     } catch (err) {
-      clearStepTimers();
       if (err.name === 'AbortError') {
         console.log('Fetch request cancelled by user');
         return;
