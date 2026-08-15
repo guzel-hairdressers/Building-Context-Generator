@@ -173,16 +173,17 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         custom_name = "Custom Location"
 
     OVERPASS_SERVERS = [
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass.nchc.org.tw/api/interpreter",
         "https://overpass.private.coffee/api/interpreter",
+        "https://overpass.freemap.sk/api/interpreter",
+        "https://lz4.overpass-api.de/api/interpreter",
+        "https://z.overpass-api.de/api/interpreter",
+        "https://overpass-api.de/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
         "https://overpass.osm.ch/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
     ]
 
     query = f"""
-    [out:json][timeout:15];
+    [out:json][timeout:20];
     (
       way["building"](around:140, {lat}, {lon});
       relation["building"](around:140, {lat}, {lon});
@@ -194,16 +195,16 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
     """
 
     headers = {
-        'User-Agent': 'BuildingContextGenerator/1.0 (Thesis Research Project)',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 (BuildingContextGenerator/1.0)',
+        'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Content-Type': 'application/x-www-form-urlencoded'
     }
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     def _query_mirror(server_url):
         try:
-            resp = requests.post(server_url, data={'data': query}, headers={'User-Agent': 'BuildingContextGenerator/1.0', 'Accept-Language': 'en-US,en;q=0.9'}, timeout=(3, 10))
+            resp = requests.post(server_url, data={'data': query}, headers=headers, timeout=(6, 20))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
@@ -211,7 +212,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         except Exception:
             pass
         try:
-            resp = requests.get(server_url, params={'data': query}, headers={'User-Agent': 'BuildingContextGenerator/1.0', 'Accept-Language': 'en-US,en;q=0.9'}, timeout=(3, 10))
+            resp = requests.get(server_url, params={'data': query}, headers=headers, timeout=(6, 20))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
@@ -225,10 +226,13 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
     with ThreadPoolExecutor(max_workers=len(OVERPASS_SERVERS)) as executor:
         futures = [executor.submit(_query_mirror, url) for url in OVERPASS_SERVERS]
         for future in as_completed(futures):
-            res_data = future.result()
-            if res_data is not None:
-                osm_data = res_data
-                break
+            try:
+                res_data = future.result()
+                if res_data is not None:
+                    osm_data = res_data
+                    break
+            except Exception:
+                pass
 
     if not osm_data:
         print("[CustomFetcher] Error: All Overpass API servers timed out or failed.", file=sys.stderr)
