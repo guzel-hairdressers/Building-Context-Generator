@@ -43,8 +43,8 @@ export function areaToPercent(a) {
 }
 
 const DEFAULT_FILTERS = {
-  city: 'ALL', // "ALL" CITIES preselected by default as requested
-  activeTier: 'ANY', // "ANY" Tier preselected by default as requested
+  city: 'ALL', // "ALL" CITIES preselected by default
+  activeTier: 'ANY', // "ANY" Tier preselected by default
   minArea: 150,
   maxArea: 10000,
   minHeight: 10,
@@ -56,14 +56,27 @@ export function filterSitesList(allSites, filters) {
   if (!Array.isArray(allSites)) return [];
   return allSites.filter((site) => {
     // City Filter
-    if (filters.city !== 'ALL' && site.city_code !== filters.city) return false;
+    if (filters.city !== 'ALL') {
+      const cityMatches = site.city_code === filters.city;
+      if (!cityMatches) return false;
+    }
 
     // Area Filter
-    if (site.site_area_m2 < filters.minArea || site.site_area_m2 > filters.maxArea) return false;
+    const area = site.site_area_m2 || 0;
+    if (filters.activeTier === 'XL') {
+      if (area < 4000) return false;
+    } else if (filters.activeTier && filters.activeTier !== 'ANY') {
+      const range = TIER_RANGES[filters.activeTier];
+      if (range && (area < range[0] || area > range[1])) return false;
+    } else {
+      if (filters.minArea !== undefined && area < filters.minArea) return false;
+      if (filters.maxArea !== undefined && filters.maxArea < 10000 && area > filters.maxArea) return false;
+    }
 
     // Height Filter
     const avgH = site.avg_height_m || 0;
-    if (avgH < filters.minHeight || avgH > filters.maxHeight) return false;
+    if (filters.minHeight !== undefined && avgH < filters.minHeight) return false;
+    if (filters.maxHeight !== undefined && avgH > filters.maxHeight) return false;
 
     return true;
   });
@@ -93,18 +106,16 @@ export const useStore = create((set, get) => ({
 
   // Add newly harvested custom site to state and immediately activate it (Atomic)
   addCustomSite: (customSite) => {
-    const siteWithCacheBust = {
+    const siteObj = {
       ...customSite,
-      render_html: customSite.render_html
-        ? (customSite.render_html.includes('?') ? customSite.render_html : `${customSite.render_html}?t=${Date.now()}`)
-        : `sites/${customSite.site_id}.html?t=${Date.now()}`
+      render_html: customSite.render_html || `sites/${customSite.site_id}.html`,
     };
 
     set((state) => {
       const exists = state.allSites.some((s) => s.site_id === customSite.site_id);
       const newAllSites = exists
-        ? state.allSites.map((s) => (s.site_id === customSite.site_id ? siteWithCacheBust : s))
-        : [siteWithCacheBust, ...state.allSites];
+        ? state.allSites.map((s) => (s.site_id === customSite.site_id ? siteObj : s))
+        : [siteObj, ...state.allSites];
 
       const newFilters = { ...DEFAULT_FILTERS }; // Reset filters so custom site is immediately displayed
       const newFiltered = filterSitesList(newAllSites, newFilters);

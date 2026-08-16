@@ -150,6 +150,30 @@ const fetchPlugin = () => ({
       }
     };
 
+    // Explicitly serve /sites/*.html directly from public/sites to prevent Vite SPA fallback
+    server.middlewares.use('/sites', (req, res, next) => {
+      const cleanUrl = req.url.replace(/^\//, '').split('?')[0];
+      const filePath = path.resolve(__dirname, 'public/sites', cleanUrl);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        return fs.createReadStream(filePath).pipe(res);
+      }
+      next();
+    });
+
+    // Explicitly serve /vendor/* directly from public/vendor
+    server.middlewares.use('/vendor', (req, res, next) => {
+      const cleanUrl = req.url.replace(/^\//, '').split('?')[0];
+      const filePath = path.resolve(__dirname, 'public/vendor', cleanUrl);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        return fs.createReadStream(filePath).pipe(res);
+      }
+      next();
+    });
+
     server.middlewares.use('/api/fetch-custom-site', handleFetchRequest);
     server.middlewares.use('/api/harvest-custom-site', handleFetchRequest);
     server.middlewares.use('/api/delete-custom-site', handleDeleteRequest);
@@ -168,6 +192,12 @@ export default defineConfig({
     host: '0.0.0.0',
     cors: true,
     open: false,
+    watch: {
+      ignored: [
+        '**/public/sites/**',
+        '**/public/data/**',
+      ],
+    },
     fs: {
       strict: false,
       allow: ['..'],

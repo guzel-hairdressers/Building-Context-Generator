@@ -36,7 +36,7 @@ export const SceneViewer = () => {
       }}
     >
       <iframe
-        key={`${site.site_id}_${targetSrc}`}
+        key={site.site_id}
         src={targetSrc}
         title={site.site_id}
         style={{
