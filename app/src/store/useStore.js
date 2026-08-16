@@ -51,6 +51,24 @@ const DEFAULT_FILTERS = {
   maxHeight: 300,
 };
 
+// Helper: Pure client-side site filtering
+export function filterSitesList(allSites, filters) {
+  if (!Array.isArray(allSites)) return [];
+  return allSites.filter((site) => {
+    // City Filter
+    if (filters.city !== 'ALL' && site.city_code !== filters.city) return false;
+
+    // Area Filter
+    if (site.site_area_m2 < filters.minArea || site.site_area_m2 > filters.maxArea) return false;
+
+    // Height Filter
+    const avgH = site.avg_height_m || 0;
+    if (avgH < filters.minHeight || avgH > filters.maxHeight) return false;
+
+    return true;
+  });
+}
+
 export const useStore = create((set, get) => ({
   allSites: [],
   filteredSites: [],
@@ -61,13 +79,19 @@ export const useStore = create((set, get) => ({
   customModalOpen: false,
   setCustomModalOpen: (open) => set({ customModalOpen: open }),
 
-  // Set initial loaded dataset
+  // Set initial loaded dataset (Atomic)
   setDataset: (sites) => {
-    set({ allSites: sites });
-    get().applyFilters();
+    set((state) => {
+      const filtered = filterSitesList(sites, state.filters);
+      return {
+        allSites: sites,
+        filteredSites: filtered,
+        activeSiteIndex: Math.min(state.activeSiteIndex, Math.max(0, filtered.length - 1)),
+      };
+    });
   },
 
-  // Add newly harvested custom site to state and immediately activate it
+  // Add newly harvested custom site to state and immediately activate it (Atomic)
   addCustomSite: (customSite) => {
     const siteWithCacheBust = {
       ...customSite,
@@ -78,31 +102,34 @@ export const useStore = create((set, get) => ({
 
     set((state) => {
       const exists = state.allSites.some((s) => s.site_id === customSite.site_id);
-      const newSites = exists
+      const newAllSites = exists
         ? state.allSites.map((s) => (s.site_id === customSite.site_id ? siteWithCacheBust : s))
         : [siteWithCacheBust, ...state.allSites];
+
+      const newFilters = { ...DEFAULT_FILTERS }; // Reset filters so custom site is immediately displayed
+      const newFiltered = filterSitesList(newAllSites, newFilters);
+      const targetIdx = newFiltered.findIndex((s) => s.site_id === customSite.site_id);
+
       return {
-        allSites: newSites,
-        filters: { ...DEFAULT_FILTERS }, // Reset filters so custom site is never filtered out
+        allSites: newAllSites,
+        filters: newFilters,
+        filteredSites: newFiltered,
+        activeSiteIndex: targetIdx !== -1 ? targetIdx : 0,
       };
     });
-
-    get().applyFilters();
-
-    const filtered = get().filteredSites;
-    const idx = filtered.findIndex((s) => s.site_id === customSite.site_id);
-    if (idx !== -1) {
-      set({ activeSiteIndex: idx });
-    }
   },
 
-  // Delete custom site from state and persistently remove from backend JSON dataset
+  // Delete custom site from state and persistently remove from backend JSON dataset (Atomic)
   deleteCustomSite: async (siteId) => {
     set((state) => {
-      const updated = state.allSites.filter((s) => s.site_id !== siteId);
-      return { allSites: updated, activeSiteIndex: 0 };
+      const newAllSites = state.allSites.filter((s) => s.site_id !== siteId);
+      const newFiltered = filterSitesList(newAllSites, state.filters);
+      return {
+        allSites: newAllSites,
+        filteredSites: newFiltered,
+        activeSiteIndex: Math.min(state.activeSiteIndex, Math.max(0, newFiltered.length - 1)),
+      };
     });
-    get().applyFilters();
 
     try {
       await fetch('/api/delete-custom-site', {
@@ -115,14 +142,13 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  // Update specific filter property
+  // Update specific filter property (Atomic)
   setFilter: (key, value) => {
     set((state) => {
-      const updated = { ...state.filters, [key]: value };
+      const updatedFilters = { ...state.filters, [key]: value };
       if (key === 'minArea' || key === 'maxArea') {
-        // Auto-check if current min/max match any tier range
-        const minA = updated.minArea;
-        const maxA = updated.maxArea;
+        const minA = updatedFilters.minArea;
+        const maxA = updatedFilters.maxArea;
         let matchedTier = null;
         for (const [tierKey, [tMin, tMax]] of Object.entries(TIER_RANGES)) {
           if (minA === tMin && maxA === tMax) {
@@ -130,66 +156,101 @@ export const useStore = create((set, get) => ({
             break;
           }
         }
-        updated.activeTier = matchedTier;
+        updatedFilters.activeTier = matchedTier;
       }
-      return { filters: updated };
+
+      const currentSite = state.filteredSites[state.activeSiteIndex];
+      const newFiltered = filterSitesList(state.allSites, updatedFilters);
+
+      let newIndex = 0;
+      if (currentSite) {
+        const idxInFiltered = newFiltered.findIndex((s) => s.site_id === currentSite.site_id);
+        if (idxInFiltered !== -1) {
+          newIndex = idxInFiltered;
+        }
+      }
+
+      return {
+        filters: updatedFilters,
+        filteredSites: newFiltered,
+        activeSiteIndex: newIndex,
+      };
     });
-    get().applyFilters();
   },
 
-  // Select small Tier preset button (ANY, XS, S, M, L, XL)
+  // Select small Tier preset button (ANY, XS, S, M, L, XL) (Atomic)
   selectTier: (tier) => {
     const range = TIER_RANGES[tier];
-    if (range) {
-      set((state) => ({
-        filters: {
-          ...state.filters,
-          activeTier: tier,
-          minArea: range[0],
-          maxArea: range[1],
-        },
-      }));
-      get().applyFilters();
-    }
-  },
+    if (!range) return;
 
-  // Reset all filters to default state (All cities, Any tier active)
-  resetFilters: () => {
-    set({ filters: { ...DEFAULT_FILTERS } });
-    get().applyFilters();
-  },
+    set((state) => {
+      const updatedFilters = {
+        ...state.filters,
+        activeTier: tier,
+        minArea: range[0],
+        maxArea: range[1],
+      };
 
-  // Apply client-side filtering over master_urban_dataset.json (<0.1ms)
-  applyFilters: () => {
-    const { allSites, filteredSites, activeSiteIndex, filters } = get();
-    const currentSite = filteredSites[activeSiteIndex];
+      const currentSite = state.filteredSites[state.activeSiteIndex];
+      const newFiltered = filterSitesList(state.allSites, updatedFilters);
 
-    const filtered = allSites.filter((site) => {
-      // City Filter
-      if (filters.city !== 'ALL' && site.city_code !== filters.city) return false;
-
-      // Area Filter
-      if (site.site_area_m2 < filters.minArea || site.site_area_m2 > filters.maxArea) return false;
-
-      // Height Filter
-      const avgH = site.avg_height_m || 0;
-      if (avgH < filters.minHeight || avgH > filters.maxHeight) return false;
-
-      return true;
-    });
-
-    let newIndex = 0;
-    // Preserve active site on screen if it still satisfies current filters
-    if (currentSite) {
-      const idxInFiltered = filtered.findIndex((s) => s.site_id === currentSite.site_id);
-      if (idxInFiltered !== -1) {
-        newIndex = idxInFiltered;
+      let newIndex = 0;
+      if (currentSite) {
+        const idxInFiltered = newFiltered.findIndex((s) => s.site_id === currentSite.site_id);
+        if (idxInFiltered !== -1) {
+          newIndex = idxInFiltered;
+        }
       }
-    }
 
-    set({
-      filteredSites: filtered,
-      activeSiteIndex: newIndex,
+      return {
+        filters: updatedFilters,
+        filteredSites: newFiltered,
+        activeSiteIndex: newIndex,
+      };
+    });
+  },
+
+  // Reset all filters to default state (Atomic)
+  resetFilters: () => {
+    set((state) => {
+      const updatedFilters = { ...DEFAULT_FILTERS };
+      const currentSite = state.filteredSites[state.activeSiteIndex];
+      const newFiltered = filterSitesList(state.allSites, updatedFilters);
+
+      let newIndex = 0;
+      if (currentSite) {
+        const idxInFiltered = newFiltered.findIndex((s) => s.site_id === currentSite.site_id);
+        if (idxInFiltered !== -1) {
+          newIndex = idxInFiltered;
+        }
+      }
+
+      return {
+        filters: updatedFilters,
+        filteredSites: newFiltered,
+        activeSiteIndex: newIndex,
+      };
+    });
+  },
+
+  // Apply client-side filtering (Atomic fallback)
+  applyFilters: () => {
+    set((state) => {
+      const currentSite = state.filteredSites[state.activeSiteIndex];
+      const filtered = filterSitesList(state.allSites, state.filters);
+
+      let newIndex = 0;
+      if (currentSite) {
+        const idxInFiltered = filtered.findIndex((s) => s.site_id === currentSite.site_id);
+        if (idxInFiltered !== -1) {
+          newIndex = idxInFiltered;
+        }
+      }
+
+      return {
+        filteredSites: filtered,
+        activeSiteIndex: newIndex,
+      };
     });
   },
 
