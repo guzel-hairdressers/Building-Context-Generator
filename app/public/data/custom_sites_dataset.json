@@ -1,18 +1,48 @@
 [
   {
-    "site_id": "custom_s_1786769993",
+    "site_id": "custom_xl_1786902065",
     "is_custom": true,
     "city_code": "custom",
-    "city_name": "Turin Fast Test",
-    "lat": 45.066069,
-    "lon": 7.678539,
-    "area_tier": "S",
-    "site_area_m2": 1251.71,
+    "city_name": "Local Three Verification",
+    "lat": 48.858262,
+    "lon": 2.294496,
+    "area_tier": "XL",
+    "site_area_m2": 16705.23,
     "avg_height_m": 15.0,
     "max_height_m": 15.0,
-    "building_count": 15,
-    "far": 0.39,
-    "render_html": "sites/custom_s_1786769993.html"
+    "building_count": 4,
+    "far": 0.03,
+    "render_html": "sites/custom_xl_1786902065.html"
+  },
+  {
+    "site_id": "custom_m_1786770284",
+    "is_custom": true,
+    "city_code": "custom",
+    "city_name": "Turin",
+    "lat": 45.095762,
+    "lon": 7.672262,
+    "area_tier": "M",
+    "site_area_m2": 1232.56,
+    "avg_height_m": 15.0,
+    "max_height_m": 15.0,
+    "building_count": 27,
+    "far": 0.27,
+    "render_html": "sites/custom_m_1786770284.html"
+  },
+  {
+    "site_id": "custom_xs_1786770226",
+    "is_custom": true,
+    "city_code": "custom",
+    "city_name": "Turin",
+    "lat": 45.068449,
+    "lon": 7.682647,
+    "area_tier": "XS",
+    "site_area_m2": 84.74,
+    "avg_height_m": 15.0,
+    "max_height_m": 15.0,
+    "building_count": 12,
+    "far": 0.43,
+    "render_html": "sites/custom_xs_1786770226.html"
   },
   {
     "site_id": "custom_xl_1786769966",
@@ -28,21 +58,6 @@
     "building_count": 4,
     "far": 0.03,
     "render_html": "sites/custom_xl_1786769966.html"
-  },
-  {
-    "site_id": "custom_xs_1786767234",
-    "is_custom": true,
-    "city_code": "custom",
-    "city_name": "Paris",
-    "lat": 48.853445,
-    "lon": 2.350209,
-    "area_tier": "XS",
-    "site_area_m2": 535.22,
-    "avg_height_m": 15.0,
-    "max_height_m": 15.0,
-    "building_count": 27,
-    "far": 0.6,
-    "render_html": "sites/custom_xs_1786767234.html"
   },
   {
     "site_id": "custom_xl_1786766955",
@@ -73,35 +88,5 @@
     "building_count": 11,
     "far": 0.16,
     "render_html": "sites/custom_xl_1786766869.html"
-  },
-  {
-    "site_id": "custom_xl_1786766457",
-    "is_custom": true,
-    "city_code": "custom",
-    "city_name": "Paris",
-    "lat": 48.852973,
-    "lon": 2.349909,
-    "area_tier": "XL",
-    "site_area_m2": 8436.3,
-    "avg_height_m": 15.0,
-    "max_height_m": 15.0,
-    "building_count": 16,
-    "far": 0.19,
-    "render_html": "sites/custom_xl_1786766457.html"
-  },
-  {
-    "site_id": "custom_xl_1786766391",
-    "is_custom": true,
-    "city_code": "custom",
-    "city_name": "Paris",
-    "lat": 48.852973,
-    "lon": 2.349909,
-    "area_tier": "XL",
-    "site_area_m2": 8436.3,
-    "avg_height_m": 15.0,
-    "max_height_m": 15.0,
-    "building_count": 16,
-    "far": 0.19,
-    "render_html": "sites/custom_xl_1786766391.html"
   }
 ]
