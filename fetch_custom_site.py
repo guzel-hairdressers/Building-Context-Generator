@@ -194,9 +194,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
       way["building"](around:140, {lat}, {lon});
       way["highway"](around:140, {lat}, {lon});
     );
-    out body;
-    >;
-    out skel qt;
+    out tags geom qt;
     """
 
     headers = {

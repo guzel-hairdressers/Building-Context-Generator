@@ -49,85 +49,85 @@ def parse_osm_data(osm_json, center_lat, center_lon, default_h=18.0):
     elements = osm_json.get("elements", [])
     nodes = {}
     for el in elements:
-        if el["type"] == "node":
+        if el.get("type") == "node":
             nodes[el["id"]] = (el["lat"], el["lon"])
 
     bldgs = []
     roads = []
 
     for el in elements:
-        if el["type"] == "way":
+        if el.get("type") == "way":
             tags = el.get("tags", {})
+            geom = el.get("geometry", [])
             w_nodes = el.get("nodes", [])
+
+            # Extract local coordinates either directly from embedded geometry or from node map
+            coords_local = []
+            if geom and len(geom) >= 2:
+                for pt in geom:
+                    lx, ly = latlon_to_local_meters(pt["lat"], pt["lon"], center_lat, center_lon)
+                    coords_local.append([lx, ly])
+            elif w_nodes:
+                for nid in w_nodes:
+                    if nid in nodes:
+                        nlat, nlon = nodes[nid]
+                        lx, ly = latlon_to_local_meters(nlat, nlon, center_lat, center_lon)
+                        coords_local.append([lx, ly])
 
             # Parse buildings
             if "building" in tags:
-                if len(w_nodes) < 3:
+                if len(coords_local) < 3:
                     continue
-                coords_local = []
-                for nid in w_nodes:
-                    if nid in nodes:
-                        nlat, nlon = nodes[nid]
-                        lx, ly = latlon_to_local_meters(nlat, nlon, center_lat, center_lon)
-                        coords_local.append([lx, ly])
+
+                if coords_local[0] == coords_local[-1]:
+                    coords_local.pop()
 
                 if len(coords_local) >= 3:
-                    if coords_local[0] == coords_local[-1]:
-                        coords_local.pop()
+                    poly = Polygon(coords_local)
+                    if not poly.is_valid:
+                        poly = poly.buffer(0)
 
-                    if len(coords_local) >= 3:
-                        poly = Polygon(coords_local)
-                        if not poly.is_valid:
-                            poly = poly.buffer(0)
+                    if poly.geom_type == 'Polygon' and poly.area > 15.0:
+                        h = default_h
+                        if "height" in tags:
+                            try:
+                                h = float(str(tags["height"]).replace("m", "").strip())
+                            except Exception:
+                                pass
+                        elif "building:levels" in tags:
+                            try:
+                                h = float(tags["building:levels"]) * 3.5
+                            except Exception:
+                                pass
 
-                        if poly.geom_type == 'Polygon' and poly.area > 15.0:
-                            h = default_h
-                            if "height" in tags:
-                                try:
-                                    h = float(tags["height"].replace("m", "").strip())
-                                except:
-                                    pass
-                            elif "building:levels" in tags:
-                                try:
-                                    h = float(tags["building:levels"]) * 3.5
-                                except:
-                                    pass
-
-                            bldgs.append({
-                                'id': f"bldg_{el['id']}",
-                                'vertices': list(poly.exterior.coords)[:-1],
-                                'faces': list(range(len(poly.exterior.coords) - 1)),
-                                'area': poly.area,
-                                'centroid': [poly.centroid.x, poly.centroid.y],
-                                'height_m': h
-                            })
+                        bldgs.append({
+                            'id': f"bldg_{el['id']}",
+                            'vertices': list(poly.exterior.coords)[:-1],
+                            'faces': list(range(len(poly.exterior.coords) - 1)),
+                            'area': poly.area,
+                            'centroid': [poly.centroid.x, poly.centroid.y],
+                            'height_m': h
+                        })
 
             # Parse roads
             elif "highway" in tags:
-                if len(w_nodes) < 2:
+                if len(coords_local) < 2:
                     continue
-                coords_local = []
-                for nid in w_nodes:
-                    if nid in nodes:
-                        nlat, nlon = nodes[nid]
-                        lx, ly = latlon_to_local_meters(nlat, nlon, center_lat, center_lon)
-                        coords_local.append([lx, ly])
 
-                if len(coords_local) >= 2:
-                    hw_type = tags.get("highway", "road")
-                    w_m = 6.0
-                    if hw_type in ['primary', 'trunk', 'motorway']:
-                        w_m = 10.0
-                    elif hw_type in ['secondary', 'tertiary']:
-                        w_m = 8.0
-                    elif hw_type in ['residential', 'unclassified', 'service']:
-                        w_m = 5.0
+                hw_type = tags.get("highway", "road")
+                w_m = 6.0
+                if hw_type in ['primary', 'trunk', 'motorway']:
+                    w_m = 10.0
+                elif hw_type in ['secondary', 'tertiary']:
+                    w_m = 8.0
+                elif hw_type in ['residential', 'unclassified', 'service']:
+                    w_m = 5.0
 
-                    roads.append({
-                        'highway_type': hw_type,
-                        'width_m': w_m,
-                        'polyline_2d': coords_local
-                    })
+                roads.append({
+                    'highway_type': hw_type,
+                    'width_m': w_m,
+                    'polyline_2d': coords_local
+                })
 
     return bldgs, roads
 
