@@ -186,11 +186,10 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         "https://overpass.private.coffee/api/interpreter",
         "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
         "https://overpass.osm.ch/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
     ]
 
     query = f"""
-    [out:json][timeout:25];
+    [out:json][timeout:15];
     (
       way["building"](around:140, {lat}, {lon});
       way["highway"](around:140, {lat}, {lon});
@@ -212,7 +211,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         session = requests.Session()
         session.trust_env = False
         try:
-            resp = session.post(server_url, data={'data': query}, headers=headers, timeout=(8, 25))
+            resp = session.post(server_url, data={'data': query}, headers=headers, timeout=(4, 10))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
@@ -223,7 +222,7 @@ def fetch_custom_site(lat: float, lon: float, custom_name: str = "Custom Site", 
         except Exception as err:
             print(f"[CustomFetcher] Mirror {server_url} POST exception: {type(err).__name__} - {err}", file=sys.stderr)
         try:
-            resp = session.get(server_url, params={'data': query}, headers=headers, timeout=(8, 25))
+            resp = session.get(server_url, params={'data': query}, headers=headers, timeout=(4, 10))
             if resp.status_code == 200:
                 data = resp.json()
                 if "elements" in data and len(data["elements"]) > 0:
@@ -418,6 +417,8 @@ if __name__ == "__main__":
     res = fetch_custom_site(args.lat, args.lon, args.name, custom_polygon=poly_list, road_setback=args.road_setback, building_setback=args.building_setback, parcel_type=args.parcel_type)
     if res:
         print(f"RESULT:{json.dumps(res)}", flush=True)
-        print(json.dumps(res), flush=True)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
     else:
         sys.exit(1)

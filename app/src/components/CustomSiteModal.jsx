@@ -444,7 +444,12 @@ export const CustomSiteModal = () => {
               if (data.type === 'progress' && data.message) {
                 setStatusMsg(data.message);
               } else if (data.type === 'complete' && data.site) {
-                siteResult = data.site;
+                addCustomSite(data.site);
+                setIsFetching(false);
+                setStatusMsg('');
+                abortControllerRef.current = null;
+                setCustomModalOpen(false);
+                return;
               } else if (data.type === 'error') {
                 throw new Error(data.error || 'Failed to generate site context');
               }
